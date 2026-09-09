@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
-import jwt from 'jsonwebtoken';
+import { Role } from '@prisma/client';
+import { verifyAccessToken } from '../utils/jwt.js';
 import { prisma } from '../config/prisma.js';
 
 export interface AuthRequest extends Request {
@@ -7,54 +8,118 @@ export interface AuthRequest extends Request {
     id: string;
     email: string;
     name: string;
+    role: Role;
+    isEmailVerified: boolean;
   };
 }
 
+// Authenticate user via JWT (supports Bearer Header & HTTP-only Cookies)
 export const authenticate = async (
   req: AuthRequest,
   res: Response,
   next: NextFunction
 ): Promise<void> => {
   try {
-    const authHeader = req.headers.authorization;
+    let token: string | undefined;
 
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    // 1. Check Authorization header
+    const authHeader = req.headers.authorization;
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      token = authHeader.split(' ')[1];
+    } else if (req.cookies && req.cookies.accessToken) {
+      // 2. Check HTTP-only cookie
+      token = req.cookies.accessToken;
+    }
+
+    if (!token) {
       res.status(401).json({
         status: 'error',
-        message: 'Authorization token required (Format: Bearer <token>)',
+        message: 'Authentication required. Please provide a Bearer token or login.',
       });
       return;
     }
 
-    const token = authHeader.split(' ')[1];
-    const secret = process.env.JWT_SECRET || 'super_secret_jwt_key';
+    // Verify Access Token
+    const decoded = verifyAccessToken(token);
 
-    const decoded = jwt.verify(token, secret) as { id: string; email: string };
-
+    // Fetch user from DB to ensure they still exist and are active
     const user = await prisma.user.findUnique({
       where: { id: decoded.id },
-      select: { id: true, name: true, email: true, createdAt: true },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        isEmailVerified: true,
+        lockUntil: true,
+      },
     });
 
     if (!user) {
       res.status(401).json({
         status: 'error',
-        message: 'User belonging to this token no longer exists',
+        message: 'The user belonging to this token no longer exists.',
       });
       return;
     }
 
-    req.user = user;
-    next();
-  } catch (error: any) {
-    if (error.name === 'JsonWebTokenError') {
-      res.status(401).json({ status: 'error', message: 'Invalid token' });
+    // Check if account is locked
+    if (user.lockUntil && user.lockUntil > new Date()) {
+      res.status(403).json({
+        status: 'error',
+        message: 'Account is temporarily locked. Please try again later.',
+      });
       return;
     }
+
+    req.user = {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      isEmailVerified: user.isEmailVerified,
+    };
+
+    next();
+  } catch (error: any) {
     if (error.name === 'TokenExpiredError') {
-      res.status(401).json({ status: 'error', message: 'Token has expired' });
+      res.status(401).json({
+        status: 'error',
+        code: 'TOKEN_EXPIRED',
+        message: 'Access token expired. Please refresh your token at /api/auth/refresh.',
+      });
+      return;
+    }
+    if (error.name === 'JsonWebTokenError') {
+      res.status(401).json({
+        status: 'error',
+        message: 'Invalid access token.',
+      });
       return;
     }
     next(error);
   }
+};
+
+// Role-based Access Control Guard (RBAC)
+export const requireRole = (...allowedRoles: Role[]) => {
+  return (req: AuthRequest, res: Response, next: NextFunction): void => {
+    if (!req.user) {
+      res.status(401).json({
+        status: 'error',
+        message: 'Unauthorized',
+      });
+      return;
+    }
+
+    if (!allowedRoles.includes(req.user.role)) {
+      res.status(403).json({
+        status: 'error',
+        message: `Forbidden: Requires one of [${allowedRoles.join(', ')}] role`,
+      });
+      return;
+    }
+
+    next();
+  };
 };

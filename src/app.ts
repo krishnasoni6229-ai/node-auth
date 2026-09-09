@@ -1,11 +1,18 @@
 import express, { Application, Request, Response, NextFunction } from 'express';
 import cors from 'cors';
+import cookieParser from 'cookie-parser';
 import authRoutes from './routes/auth.route.js';
 
 const app: Application = express();
 
 // Middlewares
-app.use(cors());
+app.use(
+  cors({
+    origin: true, // Reflect request origin
+    credentials: true, // Allow cookies
+  })
+);
+app.use(cookieParser());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
@@ -13,12 +20,16 @@ app.use(express.urlencoded({ extended: true }));
 app.get('/', (req: Request, res: Response) => {
   res.status(200).json({
     status: 'success',
-    message: 'Node.js + TypeScript + Express + Prisma Authentication API 🚀',
+    message: 'Enterprise Node.js + TypeScript + Express + Prisma Authentication API 🚀',
     endpoints: {
       signup: 'POST /api/auth/signup',
       signin: 'POST /api/auth/signin',
+      refresh: 'POST /api/auth/refresh',
       logout: 'POST /api/auth/logout',
-      me: 'GET /api/auth/me (Requires Authorization: Bearer <token>)',
+      logoutAll: 'POST /api/auth/logout-all (Requires Token)',
+      me: 'GET /api/auth/me (Requires Token)',
+      sessions: 'GET /api/auth/sessions (Requires Token)',
+      changePassword: 'POST /api/auth/change-password (Requires Token)',
     },
   });
 });
