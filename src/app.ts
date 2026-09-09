@@ -9,6 +9,18 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// Root / Welcome Route
+app.get('/', (req: Request, res: Response) => {
+  res.status(200).json({
+    status: 'success',
+    message: 'Welcome to Node.js TypeScript Express MongoDB API 🚀',
+    endpoints: {
+      health: '/api/health',
+      users: '/api/users',
+    },
+  });
+});
+
 // Health Check Route
 app.get('/api/health', (req: Request, res: Response) => {
   res.status(200).json({
