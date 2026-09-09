@@ -154,3 +154,12 @@ export const getMe = async (req: AuthRequest, res: Response): Promise<void> => {
     },
   });
 };
+
+// @route   POST /api/auth/logout
+// @desc    Log out user & invalidate client session
+export const logout = async (req: Request, res: Response): Promise<void> => {
+  res.status(200).json({
+    status: 'success',
+    message: 'Logged out successfully. Please remove the token from client storage (localStorage / sessionStorage / cookies).',
+  });
+};

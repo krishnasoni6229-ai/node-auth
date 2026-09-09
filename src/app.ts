@@ -17,6 +17,7 @@ app.get('/', (req: Request, res: Response) => {
     endpoints: {
       signup: 'POST /api/auth/signup',
       signin: 'POST /api/auth/signin',
+      logout: 'POST /api/auth/logout',
       me: 'GET /api/auth/me (Requires Authorization: Bearer <token>)',
     },
   });
