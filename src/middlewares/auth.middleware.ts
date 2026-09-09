@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
-import { Role } from '@prisma/client';
+import { Role } from '../types/role.js';
 import { verifyAccessToken } from '../utils/jwt.js';
 import { prisma } from '../config/prisma.js';
 
