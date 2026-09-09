@@ -1,6 +1,6 @@
 import express, { Application, Request, Response, NextFunction } from 'express';
 import cors from 'cors';
-import { User } from './models/user.model.js';
+import authRoutes from './routes/auth.route.js';
 
 const app: Application = express();
 
@@ -9,46 +9,21 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Root / Welcome Route
+// Root Route
 app.get('/', (req: Request, res: Response) => {
   res.status(200).json({
     status: 'success',
-    message: 'Welcome to Node.js TypeScript Express MongoDB API 🚀',
+    message: 'Node.js + TypeScript + Express + Prisma Authentication API 🚀',
     endpoints: {
-      health: '/api/health',
-      users: '/api/users',
+      signup: 'POST /api/auth/signup',
+      signin: 'POST /api/auth/signin',
+      me: 'GET /api/auth/me (Requires Authorization: Bearer <token>)',
     },
   });
 });
 
-// Health Check Route
-app.get('/api/health', (req: Request, res: Response) => {
-  res.status(200).json({
-    status: 'success',
-    message: 'Server is healthy and running',
-    timestamp: new Date().toISOString(),
-  });
-});
-
-// Basic User Routes (Demo)
-app.get('/api/users', async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const users = await User.find().sort({ createdAt: -1 });
-    res.status(200).json({ status: 'success', data: users });
-  } catch (error) {
-    next(error);
-  }
-});
-
-app.post('/api/users', async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const { name, email } = req.body;
-    const newUser = await User.create({ name, email });
-    res.status(201).json({ status: 'success', data: newUser });
-  } catch (error) {
-    next(error);
-  }
-});
+// Authentication Routes
+app.use('/api/auth', authRoutes);
 
 // 404 Route Handler
 app.use((req: Request, res: Response) => {
