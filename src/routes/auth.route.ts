@@ -8,5 +8,6 @@ router.post('/signup', signup);
 router.post('/signin', signin);
 router.post('/login', signin); // alias for convenience
 router.get('/me', authenticate, getMe);
+router.post('/me', authenticate, getMe); // supports POST as well
 
 export default router;
